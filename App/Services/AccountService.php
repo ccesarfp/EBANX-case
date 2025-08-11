@@ -65,7 +65,7 @@ class AccountService implements AccountServiceInterface
         try {
             return $this->accountRepository->deposit($accountId, $amount);
         } catch (AccountNotFoundException $e) {
-            $this->accountRepository->createAccount($accountId);
+            $this->createAccount($accountId);
             return $this->accountRepository->deposit($accountId, $amount);
         }
     }
