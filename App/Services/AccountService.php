@@ -6,13 +6,13 @@ use App\Exceptions\AccountAlreadyExistsException;
 use App\Exceptions\AccountNotFoundException;
 use App\Exceptions\InvalidAmountException;
 use App\Repositories\Interfaces\AccountRepositoryInterface;
-use App\Services\Interfaces\AccountService as InterfacesAccountService;
+use App\Services\Interfaces\AccountServiceInterface;
 use InvalidArgumentException;
 
 /**
  * Service responsible for account operations.
  */
-class AccountService implements InterfacesAccountService
+class AccountService implements AccountServiceInterface
 {
     private readonly AccountRepositoryInterface $accountRepository;
 

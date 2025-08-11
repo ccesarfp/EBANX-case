@@ -6,7 +6,7 @@ use App\Exceptions\AccountAlreadyExistsException;
 use App\Exceptions\AccountNotFoundException;
 use App\Exceptions\InvalidAmountException;
 
-interface AccountService
+interface AccountServiceInterface
 {
     /**
      * Create a new account with zero balance.
