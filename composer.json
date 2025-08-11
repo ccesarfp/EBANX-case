@@ -1,0 +1,21 @@
+{
+    "name": "caiopadilha/ebanx-case",
+    "description": "Ebanx case",
+    "version": "1.0.0",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "caiopadilha\\EbanxCase\\": "./"
+        }
+    },
+    "authors": [
+        {
+            "name": "Caio Padilha"
+        }
+    ],
+    "require": {
+        "slim/slim": "4.*",
+        "php-di/php-di": "^7.0",
+        "slim/psr7": "^1.4"
+    }
+}
