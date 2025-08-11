@@ -17,7 +17,7 @@ class InMemoryAccountRepositoryTest extends TestCase
 
     public function testCreateAccountInitializesWithZeroBalance()
     {
-        $accountId = 1;
+        $accountId = 101;
         $this->repository->createAccount($accountId);
 
         $balance = $this->repository->deposit($accountId, 1);
@@ -26,7 +26,7 @@ class InMemoryAccountRepositoryTest extends TestCase
 
     public function testDuplicateCreateAccountThrowsException()
     {
-        $accountId = 1;
+        $accountId = 102;
         $this->repository->createAccount($accountId);
 
         $this->expectException(AccountAlreadyExistsException::class);
@@ -35,7 +35,7 @@ class InMemoryAccountRepositoryTest extends TestCase
 
     public function testDepositIncreasesBalance()
     {
-        $accountId = 2;
+        $accountId = 103;
         $this->repository->createAccount($accountId);
         $this->repository->deposit($accountId, 50);
         $balance = $this->repository->deposit($accountId, 25);
