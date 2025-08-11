@@ -26,7 +26,8 @@ class AccountController
      */
     public function deposit(Request $request, Response $response): Response
     {
-        $data = $request->getParsedBody();
+        $body = $request->getBody()->getContents();
+        $data = json_decode($body, true);
 
         $destination = filter_var($data['destination'] ?? null, FILTER_VALIDATE_INT);
         $amount = filter_var($data['amount'] ?? null, FILTER_VALIDATE_FLOAT);
@@ -44,7 +45,7 @@ class AccountController
 
             $responseData = [
                 'destination' =>[
-                    'id' => (int)$destination,
+                    'id' => (string)$destination,
                     'balance' => $newBalance
                 ],
 

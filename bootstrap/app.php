@@ -9,14 +9,16 @@ use Slim\Factory\AppFactory;
 use DI\Container;
 use DI\ContainerBuilder;
 
+use function DI\autowire;
+
 require_once __DIR__ . '/../vendor/autoload.php';
 
 $containerBuilder = new ContainerBuilder();
 
 $containerBuilder->addDefinitions([
-    AccountRepositoryInterface::class => DI\autowire(InMemoryAccountRepository::class),
-    AccountServiceInterface::class => DI\autowire(AccountService::class),
-    AccountController::class => DI\autowire(\App\Controllers\AccountController::class),
+    AccountRepositoryInterface::class => autowire(InMemoryAccountRepository::class),
+    AccountServiceInterface::class => autowire(AccountService::class),
+    AccountController::class => autowire(\App\Controllers\AccountController::class),
 ]);
 
 $container = $containerBuilder->build();

@@ -10,7 +10,8 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 return function (App $app) {
     $app->post('/event', function (Request $request, Response $response) use ($app) {
-        $data = $request->getParsedBody();
+        $body = $request->getBody()->getContents();
+        $data = json_decode($body, true);
         $type = $data['type'] ?? null;
 
         $container = $app->getContainer();
