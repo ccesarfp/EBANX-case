@@ -10,6 +10,7 @@ $container = new Container();
 AppFactory::setContainer($container);
 $app = AppFactory::create();
 
-(require_once __DIR__ . '/../routes/api.php')($app);
+$routeDefinition = require __DIR__ . '/../routes/api.php';
+$routeDefinition($app);
 
 return $app;
