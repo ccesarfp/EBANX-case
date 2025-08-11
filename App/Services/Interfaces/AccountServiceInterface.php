@@ -23,6 +23,7 @@ interface AccountService
      * @param int $accountId
      * @param float $amount
      * @return float New balance after deposit
+     * @throws InvalidArgumentException
      * @throws AccountNotFoundException
      * @throws InvalidAmountException
      */
