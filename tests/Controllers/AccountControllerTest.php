@@ -11,10 +11,12 @@ use App\Exceptions\AccountNotFoundException;
 use App\Exceptions\InvalidAmountException;
 use App\Enums\HttpCodeEnum;
 use App\Enums\ContentTypeEnum;
+use App\Services\Interfaces\ResetMemoryServiceInterface;
 
 class AccountControllerTest extends TestCase
 {
     private AccountServiceInterface $accountServiceMock;
+    private ResetMemoryServiceInterface $memoryServiceMock;
     private AccountController $controller;
     private ServerRequestFactory $requestFactory;
     private ResponseFactory $responseFactory;
@@ -22,7 +24,8 @@ class AccountControllerTest extends TestCase
     protected function setUp(): void
     {
         $this->accountServiceMock = $this->createMock(AccountServiceInterface::class);
-        $this->controller = new AccountController($this->accountServiceMock);
+        $this->memoryServiceMock = $this->createMock(ResetMemoryServiceInterface::class);
+        $this->controller = new AccountController($this->accountServiceMock, $this->memoryServiceMock);
         $this->requestFactory = new ServerRequestFactory();
         $this->responseFactory = new ResponseFactory();
     }
@@ -66,7 +69,6 @@ class AccountControllerTest extends TestCase
         $body = (string)$response->getBody();
         $json = json_decode($body, true);
 
-        var_dump($json);
         $this->assertEquals($accountId, $json['destination']["id"]);
         $this->assertEquals($newBalance, $json['destination']["balance"]);
     }
@@ -167,5 +169,49 @@ class AccountControllerTest extends TestCase
 
         $this->assertArrayHasKey('error', $json);
         $this->assertEquals("Invalid amount", $json['error']);
+    }
+
+    public function testResetSuccess()
+    {
+        $memoryServiceMock = $this->createMock(ResetMemoryServiceInterface::class);
+        $memoryServiceMock->expects($this->once())
+            ->method('resetMemory')
+            ->willReturn(true);
+
+        $controller = new \App\Controllers\AccountController(
+            $this->accountServiceMock,
+            $memoryServiceMock
+        );
+
+        $request = $this->requestFactory->createServerRequest('POST', '/reset');
+        $response = $this->responseFactory->createResponse();
+
+        $response = $controller->reset($request, $response);
+
+        $this->assertEquals(HttpCodeEnum::OK, $response->getStatusCode());
+        $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+        $this->assertEquals('OK', (string)$response->getBody());
+    }
+
+    public function testResetFailure()
+    {
+        $memoryServiceMock = $this->createMock(ResetMemoryServiceInterface::class);
+        $memoryServiceMock->expects($this->once())
+            ->method('resetMemory')
+            ->willReturn(false);
+
+        $controller = new AccountController(
+            $this->accountServiceMock,
+            $memoryServiceMock
+        );
+
+        $request = $this->requestFactory->createServerRequest('POST', '/reset');
+        $response = $this->responseFactory->createResponse();
+
+        $response = $controller->reset($request, $response);
+
+        $this->assertEquals(HttpCodeEnum::INTERNAL_SERVER_ERROR, $response->getStatusCode());
+        $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+        $this->assertEquals('OK', (string)$response->getBody());
     }
 }

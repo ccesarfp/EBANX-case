@@ -5,8 +5,9 @@ namespace App\Repositories;
 use App\Exceptions\AccountAlreadyExistsException;
 use App\Exceptions\AccountNotFoundException;
 use App\Repositories\Interfaces\AccountRepositoryInterface;
+use App\Repositories\Interfaces\ResetMemoryRepositoryInterface;
 
-class InMemoryAccountRepository implements AccountRepositoryInterface {
+class InMemoryAccountRepository implements AccountRepositoryInterface, ResetMemoryRepositoryInterface {
     private array $accounts = [];
     private string $storageFile;
 
@@ -21,6 +22,17 @@ class InMemoryAccountRepository implements AccountRepositoryInterface {
     private function persist()
     {
         file_put_contents($this->storageFile, json_encode($this->accounts));
+    }
+
+    public function resetMemory(): bool {
+        $this->accounts = [];
+
+        $deleted = true;
+        if (!empty($this->storageFile) && file_exists($this->storageFile)) {
+            $deleted = unlink($this->storageFile);
+        }
+
+        return $deleted;
     }
 
     public function createAccount(int $accountId): void {
