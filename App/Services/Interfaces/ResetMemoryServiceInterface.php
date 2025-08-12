@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Repositories\Interfaces;
+namespace App\Services\Interfaces;
 
-interface ResetMemoryRepositoryInterface {
+interface ResetMemoryServiceInterface {
     /**
      * Delete all stored accounts
      *
-     * @return bool
+     * @return void
      */
     public function resetMemory(): bool;
 }
