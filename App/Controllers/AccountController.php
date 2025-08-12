@@ -10,15 +10,33 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Exceptions\AccountNotFoundException;
 use App\Exceptions\InvalidAmountException;
 use App\Services\Interfaces\AccountServiceInterface;
+use App\Services\Interfaces\ResetMemoryServiceInterface;
 use InvalidArgumentException;
 
 class AccountController
 {
     private AccountServiceInterface $accountService;
+    private ResetMemoryServiceInterface $memoryService;
 
-    public function __construct(AccountServiceInterface $accountService)
+    public function __construct(
+        AccountServiceInterface $accountService,
+        ResetMemoryServiceInterface $memoryService
+    )
     {
         $this->accountService = $accountService;
+        $this->memoryService = $memoryService;
+    }
+
+    /**
+     * Reset all accounts in memory.
+     */
+    public function reset(Request $request, Response $response): Response
+    {
+        $deleted = $this->memoryService->resetMemory();
+        $status = $deleted ? HttpCodeEnum::OK : HttpCodeEnum::INTERNAL_SERVER_ERROR;
+
+        $response->getBody()->write("OK");
+        return $response->withStatus($status)->withHeader('Content-Type', ContentTypeEnum::JSON);
     }
 
     /**

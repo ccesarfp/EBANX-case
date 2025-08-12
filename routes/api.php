@@ -9,6 +9,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 return function (App $app) {
+    $app->post('/reset', \App\Controllers\AccountController::class . ":reset");
     $app->post('/event', function (Request $request, Response $response) use ($app) {
         $body = $request->getBody()->getContents();
         $data = json_decode($body, true);
