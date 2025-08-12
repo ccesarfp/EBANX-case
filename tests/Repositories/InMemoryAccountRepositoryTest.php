@@ -15,6 +15,18 @@ class InMemoryAccountRepositoryTest extends TestCase
         $this->repository = new InMemoryAccountRepository();
     }
 
+    protected function tearDown(): void
+    {
+        $this->repository->resetMemory();
+    }
+
+    public function testResetAccounts() {
+        $accountId = 101;
+        $this->repository->createAccount($accountId);
+        $deleted = $this->repository->resetMemory();
+        $this->assertTrue($deleted, "Memory reset should return true");
+    }
+
     public function testCreateAccountInitializesWithZeroBalance()
     {
         $accountId = 101;

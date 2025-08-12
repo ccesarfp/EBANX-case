@@ -7,7 +7,6 @@ use App\Exceptions\AccountNotFoundException;
 use App\Exceptions\InvalidAmountException;
 use App\Services\AccountService;
 use App\Services\Interfaces\AccountServiceInterface;
-use InvalidArgumentException;
 
 class AccountServiceTest extends TestCase
 {

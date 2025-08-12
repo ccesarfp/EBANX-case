@@ -66,7 +66,6 @@ class AccountControllerTest extends TestCase
         $body = (string)$response->getBody();
         $json = json_decode($body, true);
 
-        var_dump($json);
         $this->assertEquals($accountId, $json['destination']["id"]);
         $this->assertEquals($newBalance, $json['destination']["balance"]);
     }
