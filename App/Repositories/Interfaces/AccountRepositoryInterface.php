@@ -16,6 +16,17 @@ interface AccountRepositoryInterface
     public function createAccount(int $accountId): void;
 
     /**
+     * Retrieves the balance of a specific accountId.
+     * If the accountId does not exist, an exception will be thrown.
+     *
+     * @param int $accountId The account ID to retrieve the balance for.
+     * @return float Returns the current balance of the account.
+     *
+     * @throws \App\Exceptions\AccountNotFoundException If the account does not exist.
+     */
+    public function getAccountBalance(int $accountId): float;
+
+    /**
      * Deposits a specific amount into an accountId.
      * If the accountId does not exist, an exception will be thrown.
      *

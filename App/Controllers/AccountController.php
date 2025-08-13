@@ -2,16 +2,18 @@
 
 namespace App\Controllers;
 
-use App\Enums\ContentTypeEnum;
+use App\Enums\EventEnum;
 use App\Enums\HttpCodeEnum;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 use App\Exceptions\AccountNotFoundException;
 use App\Exceptions\InvalidAmountException;
+use App\Exceptions\MissingValueException;
 use App\Services\Interfaces\AccountServiceInterface;
 use App\Services\Interfaces\ResetMemoryServiceInterface;
 use InvalidArgumentException;
+use App\Utils\Json;
 
 class AccountController
 {
@@ -35,50 +37,97 @@ class AccountController
         $deleted = $this->memoryService->resetMemory();
         $status = $deleted ? HttpCodeEnum::OK : HttpCodeEnum::INTERNAL_SERVER_ERROR;
 
-        $response->getBody()->write("OK");
-        return $response->withStatus($status)->withHeader('Content-Type', ContentTypeEnum::JSON);
+        return Json::jsonResponse($response, 'OK', $status);
+    }
+
+    /**
+     * Get the balance of an account.
+     *
+     * @throws AccountNotFoundException
+     */
+    public function getBalance(Request $request, Response $response): Response
+    {
+        $queryParams = $request->getQueryParams();
+        $accountId = filter_var($queryParams['account_id'] ?? null, FILTER_VALIDATE_INT);
+
+        if ($accountId === null || $accountId === false) {
+            return Json::jsonResponse($response, ['error' => 'Invalid account ID'], HttpCodeEnum::BAD_REQUEST);
+        }
+
+        try {
+            $balance = $this->accountService->getAccountBalance($accountId);
+            return Json::jsonResponse($response, $balance, HttpCodeEnum::OK);
+
+        } catch (AccountNotFoundException $e) {
+            $responseData = 0;
+            $status = HttpCodeEnum::NOT_FOUND;
+        } catch (InvalidArgumentException $e) {
+            $responseData = ['error' => $e->getMessage()];
+            $status = HttpCodeEnum::BAD_REQUEST;
+        }
+
+        return Json::jsonResponse($response, $responseData, $status);
+    }
+
+    /**
+     * Handle events.
+     *
+     * @throws MissingValueException
+     * @throws AccountNotFoundException
+     * @throws InvalidAmountException
+     */
+    public function event(Request $request, Response $response) {
+        $data = Json::getJsonBody($request);
+        $type = $data['type'] ?? null;
+
+        if ($type === null) {
+            return Json::jsonResponse($response, ['error' => 'Event type not found or unsupported'], HttpCodeEnum::NOT_FOUND);
+        }
+
+        $responseData = [];
+        $status = null;
+        try {
+            if ($type === EventEnum::ACCOUNT_DEPOSIT) {
+                $destination = filter_var($data['destination'] ?? null, FILTER_VALIDATE_INT);
+                $amount = filter_var($data['amount'] ?? null, FILTER_VALIDATE_FLOAT);
+
+                $depositResult = $this->deposit($destination, $amount);
+                return Json::jsonResponse($response, $depositResult, HttpCodeEnum::CREATED);
+            }
+        } catch (MissingValueException $e) {
+            $responseData = ['error' => $e->getMessage()];
+            $status = HttpCodeEnum::BAD_REQUEST;
+        } catch (AccountNotFoundException $e) {
+            $responseData = ['error' => $e->getMessage()];
+            $status = HttpCodeEnum::NOT_FOUND;
+        } catch (InvalidAmountException $e) {
+            $responseData = ['error' => $e->getMessage()];
+            $status = HttpCodeEnum::BAD_REQUEST;
+        }
+
+        return Json::jsonResponse($response, $responseData, $status);
     }
 
     /**
      * Deposit amount into an account.
      */
-    public function deposit(Request $request, Response $response): Response
+    private function deposit(int $destination, float $amount): array
     {
-        $body = $request->getBody()->getContents();
-        $data = json_decode($body, true);
-
-        $destination = filter_var($data['destination'] ?? null, FILTER_VALIDATE_INT);
-        $amount = filter_var($data['amount'] ?? null, FILTER_VALIDATE_FLOAT);
-
-
-        if ($destination === false || $amount === false) {
-            $response->getBody()->write(json_encode(['error' => 'Missing destination or amount'], JSON_THROW_ON_ERROR));
-
-            return $response->withStatus(HttpCodeEnum::BAD_REQUEST)->withHeader('Content-Type', ContentTypeEnum::JSON);
+        if ($destination === null || $destination === false || $destination <= 0) {
+            throw new MissingValueException("Missing destination account ID.");
         }
 
-        $responseData = [];
-        try {
-            $newBalance = $this->accountService->deposit((int)$destination, (float)$amount);
-
-            $responseData = [
-                'destination' =>[
-                    'id' => (string)$destination,
-                    'balance' => $newBalance
-                ],
-
-            ];
-            $status = HttpCodeEnum::CREATED;
-
-        } catch (AccountNotFoundException $e) {
-            $responseData = ['error' => $e->getMessage()];
-            $status = HttpCodeEnum::NOT_FOUND;
-        } catch (InvalidAmountException | InvalidArgumentException $e) {
-            $responseData = ['error' => $e->getMessage()];
-            $status = HttpCodeEnum::BAD_REQUEST;
+        if ($amount === null || $amount === false || $amount <= 0) {
+            throw new MissingValueException("Missing amount.");
         }
 
-        $response->getBody()->write(json_encode($responseData, JSON_THROW_ON_ERROR));
-        return $response->withStatus($status)->withHeader('Content-Type', ContentTypeEnum::JSON);
+        $newBalance = $this->accountService->deposit((int)$destination, (float)$amount);
+
+        return [
+            'destination' => [
+                'id' => (string)$destination,
+                'balance' => $newBalance
+            ]
+        ];
     }
 }

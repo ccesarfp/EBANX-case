@@ -7,7 +7,8 @@ use App\Exceptions\AccountNotFoundException;
 use App\Repositories\Interfaces\AccountRepositoryInterface;
 use App\Repositories\Interfaces\ResetMemoryRepositoryInterface;
 
-class InMemoryAccountRepository implements AccountRepositoryInterface, ResetMemoryRepositoryInterface {
+class InMemoryAccountRepository implements AccountRepositoryInterface, ResetMemoryRepositoryInterface
+{
     private array $accounts = [];
     private string $storageFile;
 
@@ -24,7 +25,8 @@ class InMemoryAccountRepository implements AccountRepositoryInterface, ResetMemo
         file_put_contents($this->storageFile, json_encode($this->accounts));
     }
 
-    public function resetMemory(): bool {
+    public function resetMemory(): bool
+    {
         $this->accounts = [];
 
         $deleted = true;
@@ -35,12 +37,21 @@ class InMemoryAccountRepository implements AccountRepositoryInterface, ResetMemo
         return $deleted;
     }
 
-    public function createAccount(int $accountId): void {
+    public function createAccount(int $accountId): void
+    {
         if (isset($this->accounts[$accountId])) {
             throw new AccountAlreadyExistsException("Account with ID {$accountId} already exists.");
         }
         $this->accounts[$accountId] = 0.0;
         $this->persist();
+    }
+
+    public function getAccountBalance(int $accountId): float
+    {
+        if (!isset($this->accounts[$accountId])) {
+            throw new AccountNotFoundException("Account with ID {$accountId} does not exist.");
+        }
+        return $this->accounts[$accountId];
     }
 
     public function deposit(int $accountId, float $amount): float

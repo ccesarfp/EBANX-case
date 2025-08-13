@@ -45,6 +45,21 @@ class InMemoryAccountRepositoryTest extends TestCase
         $this->repository->createAccount($accountId);
     }
 
+    public function testGetAccountBalanceThrowsExceptionForNonExistentAccount()
+    {
+        $this->expectException(AccountNotFoundException::class);
+        $this->repository->getAccountBalance(999);
+    }
+
+    public function testGetAccountBalanceGetsCorrectBalance()
+    {
+        $accountId = 104;
+        $this->repository->createAccount($accountId);
+        $this->repository->deposit($accountId, 50);
+        $balance = $this->repository->getAccountBalance($accountId);
+        $this->assertEquals(50.0, $balance);
+    }
+
     public function testDepositIncreasesBalance()
     {
         $accountId = 103;

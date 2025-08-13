@@ -1,217 +1,212 @@
-<?php
+    <?php
 
-use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\ServerRequestInterface as Request;
-use Slim\Psr7\Factory\ServerRequestFactory;
-use Slim\Psr7\Factory\StreamFactory;
-use Slim\Psr7\Factory\ResponseFactory;
-use App\Controllers\AccountController;
-use App\Services\Interfaces\AccountServiceInterface;
-use App\Exceptions\AccountNotFoundException;
-use App\Exceptions\InvalidAmountException;
-use App\Enums\HttpCodeEnum;
-use App\Enums\ContentTypeEnum;
-use App\Services\Interfaces\ResetMemoryServiceInterface;
+    use PHPUnit\Framework\TestCase;
+    use Psr\Http\Message\ServerRequestInterface as Request;
+    use Slim\Psr7\Factory\ServerRequestFactory;
+    use Slim\Psr7\Factory\StreamFactory;
+    use Slim\Psr7\Factory\ResponseFactory;
+    use App\Controllers\AccountController;
+    use App\Services\Interfaces\AccountServiceInterface;
+    use App\Exceptions\AccountNotFoundException;
+    use App\Exceptions\InvalidAmountException;
+    use App\Enums\HttpCodeEnum;
+    use App\Enums\ContentTypeEnum;
+    use App\Services\Interfaces\ResetMemoryServiceInterface;
 
-class AccountControllerTest extends TestCase
-{
-    private AccountServiceInterface $accountServiceMock;
-    private ResetMemoryServiceInterface $memoryServiceMock;
-    private AccountController $controller;
-    private ServerRequestFactory $requestFactory;
-    private ResponseFactory $responseFactory;
-
-    protected function setUp(): void
+    class AccountControllerTest extends TestCase
     {
-        $this->accountServiceMock = $this->createMock(AccountServiceInterface::class);
-        $this->memoryServiceMock = $this->createMock(ResetMemoryServiceInterface::class);
-        $this->controller = new AccountController($this->accountServiceMock, $this->memoryServiceMock);
-        $this->requestFactory = new ServerRequestFactory();
-        $this->responseFactory = new ResponseFactory();
+        private AccountServiceInterface $accountServiceMock;
+        private ResetMemoryServiceInterface $memoryServiceMock;
+        private AccountController $controller;
+        private ServerRequestFactory $requestFactory;
+        private ResponseFactory $responseFactory;
+
+        protected function setUp(): void
+        {
+            $this->accountServiceMock = $this->createMock(AccountServiceInterface::class);
+            $this->memoryServiceMock = $this->createMock(ResetMemoryServiceInterface::class);
+            $this->controller = new AccountController($this->accountServiceMock, $this->memoryServiceMock);
+            $this->requestFactory = new ServerRequestFactory();
+            $this->responseFactory = new ResponseFactory();
+        }
+
+        private function createJsonRequest(array $data): Request
+        {
+            $body = json_encode($data);
+            $streamFactory = new StreamFactory();
+            $stream = $streamFactory->createStream($body);
+
+            return $this->requestFactory->createServerRequest('POST', '/event')
+                ->withHeader('Content-Type', 'application/json')
+                ->withBody($stream);
+        }
+
+        public function testDepositSuccess()
+        {
+            $accountId = 123;
+            $amount = 100.5;
+            $newBalance = 150.5;
+
+            $this->accountServiceMock
+                ->expects($this->once())
+                ->method('deposit')
+                ->with($accountId, $amount)
+                ->willReturn($newBalance);
+
+            $request = $this->createJsonRequest([
+                'type' => 'deposit',
+                'destination' => $accountId,
+                'amount' => $amount,
+            ]);
+
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::CREATED, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertEquals($accountId, $json['destination']["id"]);
+            $this->assertEquals($newBalance, $json['destination']["balance"]);
+        }
+
+        public function testDepositMissingParameters()
+        {
+            $request = $this->createJsonRequest([
+                'type' => 'deposit',
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::BAD_REQUEST, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertArrayHasKey('error', $json);
+            $this->assertStringContainsString('Missing destination account ID.', $json['error']);
+        }
+
+        public function testDepositInvalidParameters()
+        {
+            $request = $this->createJsonRequest([
+                'type' => 'deposit',
+                'destination' => 'invalid',
+                'amount' => 'invalid',
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::BAD_REQUEST, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertArrayHasKey('error', $json);
+            $this->assertStringContainsString('Missing destination account ID.', $json['error']);
+        }
+
+        public function testDepositAccountNotFound()
+        {
+            $accountId = 123;
+            $amount = 100;
+
+            $this->accountServiceMock
+                ->expects($this->once())
+                ->method('deposit')
+                ->willThrowException(new AccountNotFoundException("Account not found"));
+
+            $request = $this->createJsonRequest([
+                'type' => 'deposit',
+                'destination' => $accountId,
+                'amount' => $amount,
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::NOT_FOUND, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertArrayHasKey('error', $json);
+            $this->assertEquals("Account not found", $json['error']);
+        }
+
+        public function testDepositInvalidAmount()
+        {
+            $accountId = 123;
+            $amount = 0;
+
+            $request = $this->createJsonRequest([
+                'type' => 'deposit',
+                'destination' => $accountId,
+                'amount' => $amount,
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::BAD_REQUEST, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertArrayHasKey('error', $json);
+            $this->assertEquals("Missing amount.", $json['error']);
+        }
+
+        public function testResetSuccess()
+        {
+            $memoryServiceMock = $this->createMock(ResetMemoryServiceInterface::class);
+            $memoryServiceMock->expects($this->once())
+                ->method('resetMemory')
+                ->willReturn(true);
+
+            $controller = new \App\Controllers\AccountController(
+                $this->accountServiceMock,
+                $memoryServiceMock
+            );
+
+            $request = $this->requestFactory->createServerRequest('POST', '/reset');
+            $response = $this->responseFactory->createResponse();
+
+            $response = $controller->reset($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::OK, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+            $this->assertEquals('OK', (string)$response->getBody());
+        }
+
+        public function testResetFailure()
+        {
+            $memoryServiceMock = $this->createMock(ResetMemoryServiceInterface::class);
+            $memoryServiceMock->expects($this->once())
+                ->method('resetMemory')
+                ->willReturn(false);
+
+            $controller = new AccountController(
+                $this->accountServiceMock,
+                $memoryServiceMock
+            );
+
+            $request = $this->requestFactory->createServerRequest('POST', '/reset');
+            $response = $this->responseFactory->createResponse();
+
+            $response = $controller->reset($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::INTERNAL_SERVER_ERROR, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+            $this->assertEquals('OK', (string)$response->getBody());
+        }
     }
-
-    private function createJsonRequest(array $data): Request
-    {
-        $body = json_encode($data);
-        $streamFactory = new StreamFactory();
-        $stream = $streamFactory->createStream($body);
-
-        return $this->requestFactory->createServerRequest('POST', '/event')
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody($stream);
-    }
-
-    public function testDepositSuccess()
-    {
-        $accountId = 123;
-        $amount = 100.5;
-        $newBalance = 150.5;
-
-        $this->accountServiceMock
-            ->expects($this->once())
-            ->method('deposit')
-            ->with($accountId, $amount)
-            ->willReturn($newBalance);
-
-        $request = $this->createJsonRequest([
-            'type' => 'deposit',
-            'destination' => $accountId,
-            'amount' => $amount,
-        ]);
-
-        $response = $this->responseFactory->createResponse();
-
-        $response = $this->controller->deposit($request, $response);
-
-        $this->assertEquals(HttpCodeEnum::CREATED, $response->getStatusCode());
-        $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
-
-        $body = (string)$response->getBody();
-        $json = json_decode($body, true);
-
-        $this->assertEquals($accountId, $json['destination']["id"]);
-        $this->assertEquals($newBalance, $json['destination']["balance"]);
-    }
-
-    public function testDepositMissingParameters()
-    {
-        $request = $this->createJsonRequest([
-            'type' => 'deposit',
-        ]);
-        $response = $this->responseFactory->createResponse();
-
-        $response = $this->controller->deposit($request, $response);
-
-        $this->assertEquals(HttpCodeEnum::BAD_REQUEST, $response->getStatusCode());
-        $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
-
-        $body = (string)$response->getBody();
-        $json = json_decode($body, true);
-
-        $this->assertArrayHasKey('error', $json);
-        $this->assertStringContainsString('Missing destination or amount', $json['error']);
-    }
-
-    public function testDepositInvalidParameters()
-    {
-        $request = $this->createJsonRequest([
-            'type' => 'deposit',
-            'destination' => 'invalid',
-            'amount' => 'invalid',
-        ]);
-        $response = $this->responseFactory->createResponse();
-
-        $response = $this->controller->deposit($request, $response);
-
-        $this->assertEquals(HttpCodeEnum::BAD_REQUEST, $response->getStatusCode());
-        $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
-
-        $body = (string)$response->getBody();
-        $json = json_decode($body, true);
-
-        $this->assertArrayHasKey('error', $json);
-        $this->assertStringContainsString('Missing destination or amount', $json['error']);
-    }
-
-    public function testDepositAccountNotFound()
-    {
-        $accountId = 123;
-        $amount = 100;
-
-        $this->accountServiceMock
-            ->expects($this->once())
-            ->method('deposit')
-            ->willThrowException(new AccountNotFoundException("Account not found"));
-
-        $request = $this->createJsonRequest([
-            'type' => 'deposit',
-            'destination' => $accountId,
-            'amount' => $amount,
-        ]);
-        $response = $this->responseFactory->createResponse();
-
-        $response = $this->controller->deposit($request, $response);
-
-        $this->assertEquals(HttpCodeEnum::NOT_FOUND, $response->getStatusCode());
-        $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
-
-        $body = (string)$response->getBody();
-        $json = json_decode($body, true);
-
-        $this->assertArrayHasKey('error', $json);
-        $this->assertEquals("Account not found", $json['error']);
-    }
-
-    public function testDepositInvalidAmount()
-    {
-        $accountId = 123;
-        $amount = 0;
-
-        $this->accountServiceMock
-            ->expects($this->once())
-            ->method('deposit')
-            ->willThrowException(new InvalidAmountException("Invalid amount"));
-
-        $request = $this->createJsonRequest([
-            'type' => 'deposit',
-            'destination' => $accountId,
-            'amount' => $amount,
-        ]);
-        $response = $this->responseFactory->createResponse();
-
-        $response = $this->controller->deposit($request, $response);
-
-        $this->assertEquals(HttpCodeEnum::BAD_REQUEST, $response->getStatusCode());
-        $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
-
-        $body = (string)$response->getBody();
-        $json = json_decode($body, true);
-
-        $this->assertArrayHasKey('error', $json);
-        $this->assertEquals("Invalid amount", $json['error']);
-    }
-
-    public function testResetSuccess()
-    {
-        $memoryServiceMock = $this->createMock(ResetMemoryServiceInterface::class);
-        $memoryServiceMock->expects($this->once())
-            ->method('resetMemory')
-            ->willReturn(true);
-
-        $controller = new \App\Controllers\AccountController(
-            $this->accountServiceMock,
-            $memoryServiceMock
-        );
-
-        $request = $this->requestFactory->createServerRequest('POST', '/reset');
-        $response = $this->responseFactory->createResponse();
-
-        $response = $controller->reset($request, $response);
-
-        $this->assertEquals(HttpCodeEnum::OK, $response->getStatusCode());
-        $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
-        $this->assertEquals('OK', (string)$response->getBody());
-    }
-
-    public function testResetFailure()
-    {
-        $memoryServiceMock = $this->createMock(ResetMemoryServiceInterface::class);
-        $memoryServiceMock->expects($this->once())
-            ->method('resetMemory')
-            ->willReturn(false);
-
-        $controller = new AccountController(
-            $this->accountServiceMock,
-            $memoryServiceMock
-        );
-
-        $request = $this->requestFactory->createServerRequest('POST', '/reset');
-        $response = $this->responseFactory->createResponse();
-
-        $response = $controller->reset($request, $response);
-
-        $this->assertEquals(HttpCodeEnum::INTERNAL_SERVER_ERROR, $response->getStatusCode());
-        $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
-        $this->assertEquals('OK', (string)$response->getBody());
-    }
-}

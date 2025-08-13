@@ -55,6 +55,29 @@ class AccountServiceTest extends TestCase
         $this->service->createAccount($accountId);
     }
 
+    public function testGetAccountBalanceSuccess()
+    {
+        $accountId = 1;
+        $amount = 100.0;
+
+        $this->repositoryMock
+            ->expects($this->once())
+            ->method('getAccountBalance')
+            ->with($accountId)
+            ->willReturn($amount);
+
+        $result = $this->service->getAccountBalance($accountId);
+        $this->assertEquals($amount, $result);
+    }
+
+    public function testGetAccountBalanceThrowsInvalidArgumentException()
+    {
+        $accountId = -1;
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->service->getAccountBalance($accountId);
+    }
+
     public function testDepositSuccess()
     {
         $accountId = 1;
