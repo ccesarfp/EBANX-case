@@ -63,4 +63,14 @@ class InMemoryAccountRepository implements AccountRepositoryInterface, ResetMemo
         $this->persist();
         return $this->accounts[$accountId];
     }
+
+    public function withdraw(int $accountId, float $amount): float
+    {
+        if (!isset($this->accounts[$accountId])) {
+            throw new AccountNotFoundException("Account with ID {$accountId} does not exist.");
+        }
+        $this->accounts[$accountId] -= $amount;
+        $this->persist();
+        return $this->accounts[$accountId];
+    }
 }

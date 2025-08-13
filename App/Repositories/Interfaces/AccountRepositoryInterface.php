@@ -38,4 +38,16 @@ interface AccountRepositoryInterface
      * @throws \App\Exceptions\AccountNotFoundException If the account does not exist.
      */
     public function deposit(int $accountId, float $amount): float;
+
+    /**
+     * Withdraws a specific amount from an accountId.
+     * If the accountId does not exist, an exception will be thrown.
+     *
+     * @param int $accountId The account ID from which the withdrawal will be made.
+     * @param float $amount The amount to withdraw.
+     * @return float Returns the new balance of the account after withdrawal.
+     *
+     * @throws \App\Exceptions\AccountNotFoundException If the account does not exist.
+     */
+    public function withdraw(int $accountId, float $amount): float;
 }

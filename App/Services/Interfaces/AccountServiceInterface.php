@@ -37,4 +37,18 @@ interface AccountServiceInterface
      * @throws InvalidAmountException
      */
     public function deposit(int $accountId, float $amount): float;
+
+    /**
+     * Withdraw an amount from an account.
+     * If amount is greater than balance, throw an exception.
+     * If account does not exist, throw an exception.
+     *
+     * @param int $accountId
+     * @param float $amount
+     * @return float New balance after withdrawal
+     * @throws InvalidArgumentException
+     * @throws AccountNotFoundException
+     * @throws InvalidAmountException
+     */
+    public function withdraw(int $accountId, float $amount): float;
 }

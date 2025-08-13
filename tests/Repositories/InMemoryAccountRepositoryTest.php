@@ -75,4 +75,20 @@ class InMemoryAccountRepositoryTest extends TestCase
         $this->expectException(AccountNotFoundException::class);
         $this->repository->deposit(999, 10);
     }
+
+    public function testWithdrawDecreasesBalance()
+    {
+        $accountId = 105;
+        $this->repository->createAccount($accountId);
+        $this->repository->deposit($accountId, 100);
+        $balance = $this->repository->withdraw($accountId, 30);
+
+        $this->assertEquals(70.0, $balance);
+    }
+
+    public function testWithdrawThrowsExceptionForNonExistentAccount()
+    {
+        $this->expectException(AccountNotFoundException::class);
+        $this->repository->withdraw(999, 10);
+    }
 }
