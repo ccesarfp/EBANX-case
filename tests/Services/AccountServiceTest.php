@@ -144,4 +144,51 @@ class AccountServiceTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->service->deposit($accountId, $amount);
     }
+
+    public function testWithdrawSuccess()
+    {
+        $accountId = 301;
+        $amount = 50.0;
+        $newBalance = 0.0;
+
+        $this->repositoryMock
+            ->expects($this->once())
+            ->method('getAccountBalance')
+            ->with($accountId)
+            ->willReturn($amount);
+
+        $this->repositoryMock
+            ->expects($this->once())
+            ->method('withdraw')
+            ->with($accountId, $amount)
+            ->willReturn($newBalance);
+
+        $result = $this->service->withdraw($accountId, $amount);
+
+        $this->assertEquals($newBalance, $result);
+    }
+
+    public function testWithdrawThrowsInvalidArgumentException()
+    {
+        $accountId = -1;
+        $amount = 10;
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->service->withdraw($accountId, $amount);
+    }
+
+    public function testWithdrawThrowsInvalidAmountException()
+    {
+        $accountId = 1;
+        $amount = 100.0;
+        $currentBalance = 50.0;
+
+        $this->repositoryMock
+            ->method('getAccountBalance')
+            ->with($accountId)
+            ->willReturn($currentBalance);
+
+        $this->expectException(InvalidAmountException::class);
+        $this->service->withdraw($accountId, $amount);
+    }
 }

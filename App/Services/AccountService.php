@@ -41,6 +41,13 @@ class AccountService implements AccountServiceInterface
         }
     }
 
+    /**
+     * Get the balance of an account.
+     *
+     * @param int $accountId
+     * @return float
+     * @throws InvalidArgumentException
+     */
     public function getAccountBalance(int $accountId): float
     {
         if ($accountId <= 0) {
@@ -77,5 +84,34 @@ class AccountService implements AccountServiceInterface
             $this->createAccount($accountId);
             return $this->accountRepository->deposit($accountId, $amount);
         }
+    }
+
+    /**
+     * Withdraw an amount from an account.
+     * If amount is greater than balance, throw an exception.
+     * If account does not exist, throw an exception.
+     *
+     * @param int $accountId
+     * @param float $amount
+     * @return float New balance after withdrawal
+     * @throws InvalidArgumentException
+     * @throws AccountNotFoundException
+     * @throws InvalidAmountException
+     */
+    public function withdraw(int $accountId, float $amount): float
+    {
+        if ($accountId <= 0) {
+            throw new InvalidArgumentException("Account ID must be a positive integer.");
+        }
+        if ($amount <= 0) {
+            throw new InvalidAmountException("Withdrawal amount must be a positive number.");
+        }
+
+        $currentBalance = $this->getAccountBalance($accountId);
+        if ($currentBalance < $amount) {
+            throw new InvalidAmountException("Insufficient funds.");
+        }
+
+        return $this->accountRepository->withdraw($accountId, $amount);
     }
 }
