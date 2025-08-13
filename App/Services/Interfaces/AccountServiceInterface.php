@@ -17,6 +17,15 @@ interface AccountServiceInterface
     public function createAccount(int $accountId): void;
 
     /**
+     * Get the balance of an account.
+     *
+     * @param int $accountId
+     * @return float
+     * @throws InvalidArgumentException
+     */
+    public function getAccountBalance(int $accountId): float;
+
+    /**
      * Deposit an amount into an account.
      * If account does not exist, create it first.
      *

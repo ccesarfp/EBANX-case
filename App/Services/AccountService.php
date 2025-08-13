@@ -41,6 +41,15 @@ class AccountService implements AccountServiceInterface
         }
     }
 
+    public function getAccountBalance(int $accountId): float
+    {
+        if ($accountId <= 0) {
+            throw new InvalidArgumentException("Account ID must be a positive integer.");
+        }
+
+        return $this->accountRepository->getAccountBalance($accountId);
+    }
+
     /**
      * Deposit an amount into an account.
      * If account does not exist, create it first.
