@@ -322,4 +322,156 @@
             $this->assertArrayHasKey('error', $json);
             $this->assertEquals("Missing amount.", $json['error']);
         }
+
+        public function testTransferWithSuccess()
+        {
+            $originId = 123;
+            $destinationId = 456;
+            $amount = 75.0;
+            $newOriginBalance = 25;
+            $newDestinationBalance = 175.0;
+
+            $this->accountServiceMock
+                ->expects($this->once())
+                ->method('transfer')
+                ->with($originId, $destinationId, $amount)
+                ->willReturn([
+                    'origin' => $newOriginBalance,
+                    'destination' => $newDestinationBalance,
+                ]);
+
+            $request = $this->createJsonRequest([
+                'type' => 'transfer',
+                'origin' => $originId,
+                'destination' => $destinationId,
+                'amount' => $amount,
+            ]);
+
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::CREATED, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertEquals($originId, $json['origin']["id"]);
+            $this->assertEquals($newOriginBalance, $json['origin']["balance"]);
+            $this->assertEquals($destinationId, $json['destination']["id"]);
+            $this->assertEquals($newDestinationBalance, $json['destination']["balance"]);
+        }
+
+        public function testTransferMissingParameters()
+        {
+            $request = $this->createJsonRequest([
+                'type' => 'transfer',
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::BAD_REQUEST, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertArrayHasKey('error', $json);
+            $this->assertStringContainsString('Missing origin account ID.', $json['error']);
+        }
+
+        public function testTransferInvalidParameters()
+        {
+            $request = $this->createJsonRequest([
+                'type' => 'transfer',
+                'origin' => 'invalid',
+                'destination' => 'invalid',
+                'amount' => 'invalid',
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::BAD_REQUEST, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertArrayHasKey('error', $json);
+            $this->assertStringContainsString('Missing origin account ID.', $json['error']);
+        }
+
+        public function testTransferAccountNotFound()
+        {
+            $originId = 123;
+            $destinationId = 456;
+            $amount = 75.0;
+
+            $this->accountServiceMock
+                ->expects($this->once())
+                ->method('transfer')
+                ->willThrowException(new AccountNotFoundException("Account not found"));
+
+            $request = $this->createJsonRequest([
+                'type' => 'transfer',
+                'origin' => $originId,
+                'destination' => $destinationId,
+                'amount' => $amount,
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::NOT_FOUND, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+        }
+
+        public function testTransferInvalidAmount()
+        {
+            $originId = 123;
+            $destinationId = 456;
+            $amount = 0;
+
+            $request = $this->createJsonRequest([
+                'type' => 'transfer',
+                'origin' => $originId,
+                'destination' => $destinationId,
+                'amount' => $amount,
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::BAD_REQUEST, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertArrayHasKey('error', $json);
+            $this->assertEquals("Missing amount.", $json['error']);
+        }
+
+        public function testEventTypeNotFound()
+        {
+            $type = 'unknown_event';
+            $request = $this->createJsonRequest([
+                'type' => $type,
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::NOT_FOUND, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertArrayHasKey('error', $json);
+            $this->assertEquals("Unsupported event type: {$type}", $json['error']);
+        }
     }

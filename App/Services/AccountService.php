@@ -114,4 +114,33 @@ class AccountService implements AccountServiceInterface
 
         return $this->accountRepository->withdraw($accountId, $amount);
     }
+
+    public function transfer(int $origin, int $destination, float $amount): array
+    {
+        if ($origin <= 0 || $destination <= 0) {
+            throw new InvalidArgumentException("Account IDs must be positive integers.");
+        }
+        if ($amount <= 0) {
+            throw new InvalidAmountException("Transfer amount must be a positive number.");
+        }
+
+        $originBalance = null;
+        try {
+            $originBalance = $this->withdraw($origin, $amount);
+            try {
+                $destinationBalance = $this->deposit($destination, $amount);
+            } catch (\Throwable $e) {
+                // Rollback
+                $this->deposit($origin, $amount);
+                throw $e;
+            }
+        } catch (\Throwable $e) {
+            throw $e;
+        }
+
+        return [
+            'origin' => $originBalance,
+            'destination' => $destinationBalance
+        ];
+    }
 }

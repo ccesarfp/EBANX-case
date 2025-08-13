@@ -191,4 +191,82 @@ class AccountServiceTest extends TestCase
         $this->expectException(InvalidAmountException::class);
         $this->service->withdraw($accountId, $amount);
     }
+
+    public function testTransferSuccess()
+    {
+        $origin = 1;
+        $destination = 2;
+        $amount = 50.0;
+        $newBalances = ['origin' => 50.0, 'destination' => 50.0];
+
+        $this->repositoryMock
+            ->expects($this->exactly(1))
+            ->method('getAccountBalance')
+            ->willReturnOnConsecutiveCalls(100.0);
+
+        $this->repositoryMock
+            ->expects($this->once())
+            ->method('withdraw')
+            ->with($origin, $amount)
+            ->willReturn($newBalances['origin']);
+
+        $this->repositoryMock
+            ->expects($this->once())
+            ->method('deposit')
+            ->with($destination, $amount)
+            ->willReturn($newBalances['destination']);
+
+        $result = $this->service->transfer($origin, $destination, $amount);
+
+        $this->assertEquals($newBalances, $result);
+    }
+
+    public function testTransferThrowsInvalidArgumentException()
+    {
+        $origin = -1;
+        $destination = 2;
+        $amount = 50.0;
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->service->transfer($origin, $destination, $amount);
+    }
+
+    public function testTransferThrowsAccountNotFoundException()
+    {
+        $origin = 1;
+        $destination = 2;
+        $amount = 50.0;
+
+        $this->repositoryMock
+            ->method('getAccountBalance')
+            ->willThrowException(new AccountNotFoundException());
+
+        $this->expectException(AccountNotFoundException::class);
+        $this->service->transfer($origin, $destination, $amount);
+    }
+
+    public function testTransferThrowsInvalidAmountException()
+    {
+        $origin = 1;
+        $destination = 2;
+        $amount = -50.0;
+
+        $this->expectException(InvalidAmountException::class);
+        $this->service->transfer($origin, $destination, $amount);
+    }
+
+    public function testTransferThrowsInsufficientFundsException()
+    {
+        $origin = 1;
+        $destination = 2;
+        $amount = 100.0;
+
+        $this->repositoryMock
+            ->method('getAccountBalance')
+            ->with($origin)
+            ->willReturn(50.0);
+
+        $this->expectException(InvalidAmountException::class);
+        $this->service->transfer($origin, $destination, $amount);
+    }
 }

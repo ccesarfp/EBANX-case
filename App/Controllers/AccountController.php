@@ -87,21 +87,29 @@ class AccountController
         $responseData = [];
         $status = null;
         try {
-            if ($type === EventEnum::ACCOUNT_DEPOSIT) {
-                $destination = filter_var($data['destination'] ?? null, FILTER_VALIDATE_INT);
-                $amount = filter_var($data['amount'] ?? null, FILTER_VALIDATE_FLOAT);
+            $amount = filter_var($data['amount'] ?? null, FILTER_VALIDATE_FLOAT);
+            switch ($type) {
+                case EventEnum::ACCOUNT_DEPOSIT:
+                    $destination = filter_var($data['destination'] ?? null, FILTER_VALIDATE_INT);
 
-                $depositResult = $this->deposit($destination, $amount);
-                return Json::jsonResponse($response, $depositResult, HttpCodeEnum::CREATED);
+                    $result = $this->deposit($destination, $amount);
+                    break;
+                case EventEnum::ACCOUNT_WITHDRAW:
+                    $origin = filter_var($data['origin'] ?? null, FILTER_VALIDATE_INT);
+
+                    $result = $this->withdraw($origin, $amount);
+                    break;
+                case EventEnum::ACCOUNT_TRANSFER:
+                    $destination = filter_var($data['destination'] ?? null, FILTER_VALIDATE_INT);
+                    $origin = filter_var($data['origin'] ?? null, FILTER_VALIDATE_INT);
+
+                    $result = $this->transfer($origin, $destination, $amount);
+                    break;
+                default:
+                    throw new InvalidArgumentException("Unsupported event type: {$type}");
             }
 
-            if ($type === EventEnum::ACCOUNT_WITHDRAW) {
-                $origin = filter_var($data['origin'] ?? null, FILTER_VALIDATE_INT);
-                $amount = filter_var($data['amount'] ?? null, FILTER_VALIDATE_FLOAT);
-
-                $withdrawResult = $this->withdraw($origin, $amount);
-                return Json::jsonResponse($response, $withdrawResult, HttpCodeEnum::CREATED);
-            }
+            return Json::jsonResponse($response, $result, HttpCodeEnum::CREATED);
         } catch (MissingValueException $e) {
             $responseData = ['error' => $e->getMessage()];
             $status = HttpCodeEnum::BAD_REQUEST;
@@ -111,6 +119,9 @@ class AccountController
         } catch (InvalidAmountException $e) {
             $responseData = ['error' => $e->getMessage()];
             $status = HttpCodeEnum::BAD_REQUEST;
+        } catch (InvalidArgumentException $e) {
+            $responseData = ['error' => $e->getMessage()];
+            $status = HttpCodeEnum::NOT_FOUND;
         }
 
         return Json::jsonResponse($response, $responseData, $status);
@@ -158,6 +169,35 @@ class AccountController
             'origin' => [
                 'id' => (string)$origin,
                 'balance' => $newBalance
+            ]
+        ];
+    }
+
+    /**
+     * Transfer amount from one account to another.
+     */
+    private function transfer(int $origin, int $destination, float $amount): array
+    {
+        if ($origin === null || $origin === false || $origin <= 0) {
+            throw new MissingValueException("Missing origin account ID.");
+        }
+        if ($destination === null || $destination === false || $destination <= 0) {
+            throw new MissingValueException("Missing destination account ID.");
+        }
+        if ($amount === null || $amount === false || $amount <= 0) {
+            throw new MissingValueException("Missing amount.");
+        }
+
+        $transferData = $this->accountService->transfer((int)$origin, (int)$destination, (float)$amount);
+
+        return [
+            'origin' => [
+                'id' => (string)$origin,
+                'balance' => $transferData['origin']
+            ],
+            'destination' => [
+                'id' => (string)$destination,
+                'balance' => $transferData['destination']
             ]
         ];
     }
