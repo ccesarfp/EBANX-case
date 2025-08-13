@@ -94,11 +94,19 @@ class AccountController
                 $depositResult = $this->deposit($destination, $amount);
                 return Json::jsonResponse($response, $depositResult, HttpCodeEnum::CREATED);
             }
+
+            if ($type === EventEnum::ACCOUNT_WITHDRAW) {
+                $origin = filter_var($data['origin'] ?? null, FILTER_VALIDATE_INT);
+                $amount = filter_var($data['amount'] ?? null, FILTER_VALIDATE_FLOAT);
+
+                $withdrawResult = $this->withdraw($origin, $amount);
+                return Json::jsonResponse($response, $withdrawResult, HttpCodeEnum::CREATED);
+            }
         } catch (MissingValueException $e) {
             $responseData = ['error' => $e->getMessage()];
             $status = HttpCodeEnum::BAD_REQUEST;
         } catch (AccountNotFoundException $e) {
-            $responseData = ['error' => $e->getMessage()];
+            $responseData = 0;
             $status = HttpCodeEnum::NOT_FOUND;
         } catch (InvalidAmountException $e) {
             $responseData = ['error' => $e->getMessage()];
@@ -126,6 +134,29 @@ class AccountController
         return [
             'destination' => [
                 'id' => (string)$destination,
+                'balance' => $newBalance
+            ]
+        ];
+    }
+
+    /**
+     * Withdraw amount from an account.
+     */
+    private function withdraw(int $origin, float $amount): array
+    {
+        if ($origin === null || $origin === false || $origin <= 0) {
+            throw new MissingValueException("Missing origin account ID.");
+        }
+
+        if ($amount === null || $amount === false || $amount <= 0) {
+            throw new MissingValueException("Missing amount.");
+        }
+
+        $newBalance = $this->accountService->withdraw((int)$origin, (float)$amount);
+
+        return [
+            'origin' => [
+                'id' => (string)$origin,
                 'balance' => $newBalance
             ]
         ];

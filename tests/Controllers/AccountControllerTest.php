@@ -134,12 +134,6 @@
 
             $this->assertEquals(HttpCodeEnum::NOT_FOUND, $response->getStatusCode());
             $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
-
-            $body = (string)$response->getBody();
-            $json = json_decode($body, true);
-
-            $this->assertArrayHasKey('error', $json);
-            $this->assertEquals("Account not found", $json['error']);
         }
 
         public function testDepositInvalidAmount()
@@ -208,5 +202,124 @@
             $this->assertEquals(HttpCodeEnum::INTERNAL_SERVER_ERROR, $response->getStatusCode());
             $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
             $this->assertEquals('OK', (string)$response->getBody());
+        }
+
+        public function testWithdrawSuccess()
+        {
+            $accountId = 123;
+            $amount = 50.0;
+            $newBalance = 50.0;
+
+            $this->accountServiceMock
+                ->expects($this->once())
+                ->method('withdraw')
+                ->with($accountId, $amount)
+                ->willReturn($newBalance);
+
+            $request = $this->createJsonRequest([
+                'type' => 'withdraw',
+                'origin' => $accountId,
+                'amount' => $amount,
+            ]);
+
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::CREATED, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertEquals($accountId, $json['origin']["id"]);
+            $this->assertEquals($newBalance, $json['origin']["balance"]);
+        }
+
+        public function testWithdrawMissingParameters()
+        {
+            $request = $this->createJsonRequest([
+                'type' => 'withdraw',
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::BAD_REQUEST, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertArrayHasKey('error', $json);
+            $this->assertStringContainsString('Missing origin account ID.', $json['error']);
+        }
+
+        public function testWithdrawInvalidParameters()
+        {
+            $request = $this->createJsonRequest([
+                'type' => 'withdraw',
+                'origin' => 'invalid',
+                'amount' => 'invalid',
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::BAD_REQUEST, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertArrayHasKey('error', $json);
+            $this->assertStringContainsString('Missing origin account ID.', $json['error']);
+        }
+
+        public function testWithdrawAccountNotFound()
+        {
+            $accountId = 123;
+            $amount = 50;
+
+            $this->accountServiceMock
+                ->expects($this->once())
+                ->method('withdraw')
+                ->willThrowException(new AccountNotFoundException("Account not found"));
+
+            $request = $this->createJsonRequest([
+                'type' => 'withdraw',
+                'origin' => $accountId,
+                'amount' => $amount,
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::NOT_FOUND, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+        }
+
+        public function testWithdrawInvalidAmount()
+        {
+            $accountId = 123;
+            $amount = 0;
+
+            $request = $this->createJsonRequest([
+                'type' => 'withdraw',
+                'origin' => $accountId,
+                'amount' => $amount,
+            ]);
+            $response = $this->responseFactory->createResponse();
+
+            $response = $this->controller->event($request, $response);
+
+            $this->assertEquals(HttpCodeEnum::BAD_REQUEST, $response->getStatusCode());
+            $this->assertEquals(ContentTypeEnum::JSON, $response->getHeaderLine('Content-Type'));
+
+            $body = (string)$response->getBody();
+            $json = json_decode($body, true);
+
+            $this->assertArrayHasKey('error', $json);
+            $this->assertEquals("Missing amount.", $json['error']);
         }
     }
