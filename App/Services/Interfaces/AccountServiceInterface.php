@@ -51,4 +51,18 @@ interface AccountServiceInterface
      * @throws InvalidAmountException
      */
     public function withdraw(int $accountId, float $amount): float;
+
+    /**
+     * Transfer an amount from one account to another.
+     * If either account does not exist, throw an exception.
+     *
+     * @param int $origin
+     * @param int $destination
+     * @param float $amount
+     * @return array New balances of both accounts
+     * @throws InvalidArgumentException
+     * @throws AccountNotFoundException
+     * @throws InvalidAmountException
+     */
+    public function transfer(int $origin, int $destination, float $amount): array;
 }
